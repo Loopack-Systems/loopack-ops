@@ -43,8 +43,9 @@ if st.button("Enter") or 'login' in st.session_state:
 
         st.write("Event time")
         col1, col2 = st.columns(2)
-        col1.date_input("date", value="today", label_visibility="collapsed")
-        col2.time_input("time", value="now", label_visibility="collapsed")
+        date = col1.date_input("date", value="today", label_visibility="collapsed")
+        time = col2.time_input("time", value="now", label_visibility="collapsed")
+        event_time = datetime.combine(date, time)
 
         vertical_space(2)
 
@@ -54,16 +55,15 @@ if st.button("Enter") or 'login' in st.session_state:
                 dirty =[]
                 clean = []
                 if len(dirty_cups) != 0:
-                    dirty = dirty_cups.split(",")
+                    dirty = list(map(int, dirty_cups.split(",")))
                 if len(clean_cups) != 0:
-                    clean = clean_cups.split(",")
+                    clean = list(map(int, clean_cups.split(",")))
                 
                 if n_cups != len(list(set(dirty + clean))):
                     st.error("Nr of cups doesn't match nr of IDs")
                 else:
                     try:
-                        res = queries.register_dirty_cups(dirty)
-                        res = queries.register_clean_cups(clean)
+                        res = queries.register_cups(dirty, clean, event_time)
                         st.success('Cups Collected', icon="✅")
                     except:
                         st.error(f"Something went wrong, with res = {res}")
@@ -71,7 +71,7 @@ if st.button("Enter") or 'login' in st.session_state:
             elif action == 'Fill dispenser':
                     try:
                         res = queries.update_dispenser_stock(cups_in_stock)
-                        res = queries.add_dispenser_cups(n_cups_inserted)
+                        res = queries.add_dispenser_cups(n_cups_inserted, event_time)
                         st.success('Dispenser Updated', icon="✅")
                     except:
                         st.error(f"Something went wrong, with res = {res}")
