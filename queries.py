@@ -35,30 +35,49 @@ class Queries():
 
         return info_df["cup_status_id"], info_df["last_cup_event_type_id"], info_df["current_device_id"]
 
+    def get_cup_id(self, cup_name):
+
+        self.cursor = self.conn.cursor()
+
+        query = f"select id from cup where id_name = '{cup_name}'"
+        self.cursor.execute(query)
+        # et value
+        res = [tuple(row) for row in self.cursor.fetchall()]
+        self.cursor.close()
+        cup_id = res[0][0]
+        
+        return cup_id
+
     def register_cups(self, dirty, clean, event_time):
-        for cup_id in dirty:
+        for cup in dirty:
+            cup_id = self.get_cup_id(cup)
             status, last_event, current_device = self.get_cup_current_info(cup_id)
             refund_card_id = self.get_corresponding_refund_card(cup_id, event_time)
             if status != 3: # not in bin
                 self.insert_cup_event(cup_id, event_time, refund_card_id)
-        for cup_id in clean:
+        for cup in clean:
+            cup_id = self.get_cup_id(cup)
             status, last_event, current_device = self.get_cup_current_info(cup_id)
             refund_card_id = self.get_corresponding_refund_card(cup_id, event_time)
-            if status != 3: # not in bin
+            if status[0] != 3: # not in bin
                 self.insert_cup_event(cup_id, event_time, refund_card_id, fake=True)
             else: # if in bin
-                self._decrease_card_returned_cups(refund_card_id)
+                try:
+                    self._decrease_card_returned_cups(refund_card_id)
+                except:
+                    #only works if card is registered
+                    pass
                 # turn last event to fake
                 self._turn_last_event_to_fake(cup_id)
 
-    def update_dispenser_stock(self, n_cups):
-        pass
-
-    def add_dispenser_cups(self, n_cups, event_time):
+    def add_dispenser_cups(self, n_cups, event_time, reset_stock = False):
 
         self.cursor = self.conn.cursor()
 
-        query = f"UPDATE device SET capacity = capacity + '{n_cups}', last_update = '{event_time} WHERE id = 1;"
+        if reset_stock:
+            query = f"UPDATE device SET capacity = '{n_cups}', updated_at = '{event_time}' WHERE id = 1;"
+        else:
+            query = f"UPDATE device SET capacity = capacity + '{n_cups}', updated_at = '{event_time}' WHERE id = 1;"
 
         self.cursor.execute(query)
 
@@ -78,20 +97,29 @@ class Queries():
         query = f"UPDATE cup SET cup_status_id = {cup_status_id}, last_cup_event_type_id = {cup_event_type_id}, current_device_id = {current_device_id}, updated_at = '{event_time}' WHERE id = '{cup_id}'"
         self.cursor.execute(query)
 
+        # create new event (set to fake if fake)
         query = f"INSERT INTO cup_event (cup_id, event_time, cup_event_type_id, device_id, refund_card_id, fake) VALUES ('{cup_id}', '{event_time}', {cup_event_type_id}, {current_device_id}, '{refund_card_id}', '{fake}')"
         self.cursor.execute(query)
 
         self.conn.commit()
         self.cursor.close()
-
         """ 
         if cup_event_type_id == CupEventType.LEFT_DISPENSER.value:
             self._increase_cup_cycle(cup_id)
         """
 
-        if not fake:
+        if fake:
+            # set last dispenser to fake
+            self.cursor = self.conn.cursor()
+            query = f"WITH grouped AS (SELECT MAX(event_time) as max_event_time FROM cup_event WHERE cup_event_type_id = 3 GROUP BY cup_id) UPDATE cup_event SET fake = 1 WHERE cup_id = '{cup_id}' and event_time IN (select max_event_time from grouped);"
+            # cup_event_id = 3 is left dispenser
+            self.cursor.execute(query)
+            self.conn.commit()
+            self.cursor.close()
+        else:
             self._increase_card_returned_cups(refund_card_id)
             self._check_card_returned_cups(refund_card_id)
+
 
         if refund_card_id in ["NULL", -999]:
             refund_card_id = None
@@ -122,11 +150,16 @@ class Queries():
 
     def _turn_last_event_to_fake(self, cup_id):
         
+        # turn dispenser event to fake
         self.cursor = self.conn.cursor()
-
-        query = f"UPDATE cup_event SET fake = true WHERE id = '{cup_id}' and cup_event_id = 3 and event_time IN (SELECT MAX(event_time) FROM cup_event WHERE id = '{cup_id}');"
+        query = f"WITH grouped AS (SELECT MAX(event_time) as max_event_time FROM cup_event WHERE cup_event_type_id = 3 GROUP BY cup_id) UPDATE cup_event SET fake = 1 WHERE cup_id = '{cup_id}' and event_time IN (select max_event_time from grouped);"
         # cup_event_id = 3 is left dispenser
+        self.cursor.execute(query)
 
+
+        # turn bin event to fake
+        query = f"WITH grouped AS (SELECT MAX(event_time) as max_event_time FROM cup_event WHERE cup_event_type_id = 2 GROUP BY cup_id) UPDATE cup_event SET fake = 1 WHERE cup_id = '{cup_id}' and event_time IN (select max_event_time from grouped);"
+        # cup_event_id = 2 is entered bin
         self.cursor.execute(query)
 
         self.conn.commit()
@@ -157,13 +190,11 @@ class Queries():
         self.cursor = self.conn.cursor()
 
         refund_card_id = self.__get_refund_card_id(cup_id, event_time)
-
         if refund_card_id is None:
             refund_card_id = -999
 
         self.conn.commit()
         self.cursor.close()
-
         return refund_card_id
     
     def __get_refund_card_id(self, cup_id, event_time):
@@ -176,12 +207,14 @@ class Queries():
         column_names = [column[0] for column in self.cursor.description]
         
         df = pd.DataFrame(res, columns=column_names)
-
+        
+        """
         if len(df) == 0:
             print("[MAIN ERROR] No previous data found for this cup.")
             return
         elif df.iloc[0]["cup_event_type_id"] != 3:
             print(f"[MAIN ERROR] Last cup event is not the expected (leave dispenser):\n{df.iloc[0]}")
             return
+        """
 
         return df.iloc[0]["refund_card_id"]

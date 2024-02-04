@@ -38,8 +38,8 @@ if st.button("Enter") or 'login' in st.session_state:
 
 
         elif action == 'Fill dispenser':
-            cups_in_stock = st.number_input("Cups in stock", min_value=0, max_value=200, value="min", step=1, format="%d")
             n_cups_inserted = st.number_input("Cups inserted", min_value=0, max_value=200, value="min", step=1, format="%d")
+            reset_stock = st.checkbox('Reset Stock')
 
         st.write("Event time")
         col1, col2 = st.columns(2)
@@ -65,14 +65,13 @@ if st.button("Enter") or 'login' in st.session_state:
                     try:
                         res = queries.register_cups(dirty, clean, event_time)
                         st.success('Cups Collected', icon="✅")
-                    except:
-                        st.error(f"Something went wrong, with res = {res}")
+                    except Exception as e:
+                        st.error(f"Something went wrong. Try again. Exception:{e}")
 
             elif action == 'Fill dispenser':
                     try:
-                        res = queries.update_dispenser_stock(cups_in_stock)
-                        res = queries.add_dispenser_cups(n_cups_inserted, event_time)
+                        res = queries.add_dispenser_cups(n_cups_inserted, event_time, reset_stock)
                         st.success('Dispenser Updated', icon="✅")
-                    except:
-                        st.error(f"Something went wrong, with res = {res}")
+                    except Exception as e:
+                        st.error(f"Something went wrong. Try again. Exception:{e}")
 
