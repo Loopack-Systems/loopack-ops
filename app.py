@@ -27,9 +27,19 @@ if st.button("Enter") or 'login' in st.session_state:
         
         st.markdown("### Register device event")
 
-        st.selectbox("Event type", ["Empty collector", "Fill dispenser"], index=0)
+        action = st.selectbox("Event type", ["Empty bins", "Fill dispenser"], index=0)
 
-        st.number_input("Number of cups", min_value=0, max_value=200, value="min", step=1, format="%d")
+        if action == 'Empty bins':
+
+            n_cups = st.number_input("Total Cups", min_value=0, max_value=200, value="min", step=1, format="%d", key=0)
+            
+            dirty_cups = st.text_input("Dirty Cups IDs", placeholder="1,2,3,4",  key=1)
+            clean_cups = st.text_input("Clean Cups IDs", placeholder="1,2,3,4", key=2)
+
+
+        elif action == 'Fill dispenser':
+            cups_in_stock = st.number_input("Cups in stock", min_value=0, max_value=200, value="min", step=1, format="%d")
+            n_cups_inserted = st.number_input("Cups inserted", min_value=0, max_value=200, value="min", step=1, format="%d")
 
         st.write("Event time")
         col1, col2 = st.columns(2)
@@ -39,5 +49,30 @@ if st.button("Enter") or 'login' in st.session_state:
         vertical_space(2)
 
         if st.button("Register", type="primary"):
-            pass
+
+            if action == 'Empty bins':
+                dirty =[]
+                clean = []
+                if len(dirty_cups) != 0:
+                    dirty = dirty_cups.split(",")
+                if len(clean_cups) != 0:
+                    clean = clean_cups.split(",")
+                
+                if n_cups != len(list(set(dirty + clean))):
+                    st.error("Nr of cups doesn't match nr of IDs")
+                else:
+                    try:
+                        res = queries.register_dirty_cups(dirty)
+                        res = queries.register_clean_cups(clean)
+                        st.success('Cups Collected', icon="✅")
+                    except:
+                        st.error(f"Something went wrong, with res = {res}")
+
+            elif action == 'Fill dispenser':
+                    try:
+                        res = queries.update_dispenser_stock(cups_in_stock)
+                        res = queries.add_dispenser_cups(n_cups_inserted)
+                        st.success('Dispenser Updated', icon="✅")
+                    except:
+                        st.error(f"Something went wrong, with res = {res}")
 
