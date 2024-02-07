@@ -60,7 +60,7 @@ class Queries():
             status, last_event, current_device = self.get_cup_current_info(cup_id)
             refund_card_id = self.get_corresponding_refund_card(cup_id, event_time)
             if status[0] != 3: # not in bin
-                self.insert_cup_event(cup_id, event_time, refund_card_id, fake=True)
+                self.insert_cup_event(cup_id, event_time, refund_card_id, fake=1)
             else: # if in bin
                 try:
                     self._decrease_card_returned_cups(refund_card_id)
@@ -86,7 +86,7 @@ class Queries():
 
 
     # From loopack-prototype
-    def insert_cup_event(self, cup_id, event_time, refund_card_id, fake = False):
+    def insert_cup_event(self, cup_id, event_time, refund_card_id, fake = 0):
 
         self.cursor = self.conn.cursor()
 
