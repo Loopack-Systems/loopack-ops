@@ -1,6 +1,7 @@
 from datetime import datetime
 import streamlit as st
 from queries import Queries
+import pandas as pd
 
 queries = Queries()
 
@@ -59,8 +60,9 @@ if st.button("Enter") or 'login' in st.session_state:
                 if len(clean_cups) != 0:
                     clean = list(map(int, clean_cups.split(",")))
                 
-                if n_cups != len(list(set(dirty + clean))):
-                    st.error("Nr of cups doesn't match nr of IDs")
+                ds = pd.Series(dirty + clean)
+                if n_cups != len(ds):
+                    st.error(f"Nr of cups doesn't match nr of IDs. Cups: {n_cups}, IDs: {len(ds)} (Dirty: {len(set(dirty))}, Clean: {len(set(clean))}). Repeated: {ds[ds.duplicated()].to_list()}")
                 else:
                     try:
                         res = queries.register_cups(dirty, clean, event_time)

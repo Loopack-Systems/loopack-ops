@@ -29,6 +29,13 @@ class Queries():
         res = [tuple(row) for row in self.cursor.fetchall()]
         column_names = [column[0] for column in self.cursor.description]
         
+
+        # check if cup has been used before: (if not we have to simulate)
+        #caused by an error (first time cup in dispenser and it left wihtout being read)
+        if res[0][0] is None:
+            res = [(2,3, None)]
+            # 2: status user, 3: event left dispenser
+
         info_df = pd.DataFrame(res, columns=column_names)
 
         self.cursor.close()
@@ -53,7 +60,7 @@ class Queries():
             cup_id = self.get_cup_id(cup)
             status, last_event, current_device = self.get_cup_current_info(cup_id)
             refund_card_id = self.get_corresponding_refund_card(cup_id, event_time)
-            if status != 3: # not in bin
+            if status[0] != 3: # not in bin
                 self.insert_cup_event(cup_id, event_time, refund_card_id)
         for cup in clean:
             cup_id = self.get_cup_id(cup)
@@ -192,7 +199,6 @@ class Queries():
         refund_card_id = self.__get_refund_card_id(cup_id, event_time)
         if refund_card_id is None:
             refund_card_id = -999
-
         self.conn.commit()
         self.cursor.close()
         return refund_card_id
@@ -204,9 +210,15 @@ class Queries():
         query = f"select cup_id, event_time, cup_event_type_id, refund_card_id from cup_event where cup_id = '{cup_id}' and event_time <= '{event_time}' order by event_time desc limit 1"
         self.cursor.execute(query)
         res = [tuple(row) for row in self.cursor.fetchall()]
-        column_names = [column[0] for column in self.cursor.description]
         
-        df = pd.DataFrame(res, columns=column_names)
+        # if couldnt find (no event of left dispenser)
+        if len(res) == 0:
+            refund_card_id = -999
+        else:
+            column_names = [column[0] for column in self.cursor.description]
+        
+            df = pd.DataFrame(res, columns=column_names)
+            refund_card_id =  df.iloc[0]["refund_card_id"]
         
         """
         if len(df) == 0:
@@ -217,4 +229,4 @@ class Queries():
             return
         """
 
-        return df.iloc[0]["refund_card_id"]
+        return
