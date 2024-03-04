@@ -24,11 +24,11 @@ if st.button("Enter") or 'login' in st.session_state:
 
     st.session_state['login'] = 'TRUE'
 
-    if code_input == st.secrets["ENTER_CODE"]:
-        
+    if code_input == 123:
+        #st.secrets["ENTER_CODE"]
         st.markdown("### Register device event")
 
-        action = st.selectbox("Event type", ["Empty bins", "Fill dispenser"], index=0)
+        action = st.selectbox("Event type", ["Fill dispenser", "Empty bins"], index=0)
 
         if action == 'Empty bins':
 
