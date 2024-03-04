@@ -84,7 +84,7 @@ class Queries():
         if reset_stock:
             query = f"UPDATE device SET capacity = '{n_cups}', updated_at = '{event_time}' WHERE id = 1;"
         else:
-            query = f"UPDATE device SET capacity = capacity + '{n_cups}', updated_at = '{event_time}' WHERE id = 1;"
+            query = f"UPDATE device SET capacity = capacity + '{n_cups}' WHERE id = 1;"
 
         self.cursor.execute(query)
 
