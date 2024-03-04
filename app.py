@@ -24,7 +24,7 @@ if st.button("Enter") or 'login' in st.session_state:
 
     st.session_state['login'] = 'TRUE'
 
-    if code_input == 123:
+    if code_input == "123":
         #st.secrets["ENTER_CODE"]
         st.markdown("### Register device event")
 
